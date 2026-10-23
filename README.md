@@ -91,7 +91,7 @@ The fix was [coalescing](internal/coalesce/coalesce.go): when many goroutines ne
 | No insert batching | 0.0% | 115 ms | 0.21 s | 1.24 s |
 | Neither | 8.5% | 672 ms | 10.17 s | 25.16 s |
 
-Insert batching, the optimization I expected to matter, did little at 1,200 req/s: batches averaged 2.2 rows. It matters near saturation, where batches grow (6.2 rows at 1,800 req/s): there, turning it off raised API p99 from 243 ms to 575 ms and left 10.3% of requests unsent instead of 1.9%.
+Insert batching, the optimization I expected to matter most, mattered least at 1,200 req/s (p99 81 ms with it, 115 ms without): batches averaged only 2.2 rows. It matters near saturation, where batches grow (6.2 rows at 1,800 req/s): there, turning it off raised API p99 from 243 ms to 575 ms and left 10.3% of requests unsent instead of 1.9%.
 
 ### The bug the chaos tests found
 
