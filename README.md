@@ -4,7 +4,9 @@ Herald is a notification platform written in Go. Applications send it a notifica
 
 It's built to show how an event-driven backend stays correct under concurrency and failure: Kafka retry topics and a dead-letter queue, a Redis Lua sliding-window rate limiter, Redis locks with fencing tokens, a transactional outbox, circuit breakers, and a live WebSocket dashboard. Every claim below is backed by a test or a benchmark in this repo.
 
-![Live dashboard during a push-provider outage](docs/dashboard.png)
+![Live dashboard during a push-provider outage: push's circuit is open and traffic flows through email and SMS](docs/dashboard.png)
+
+[Watch the 2-minute demo](docs/demo.mp4): real k6 traffic while the push provider fails, a tenant exceeds its rate limit, and the Kafka broker is stopped and restarted. Recorded with [bench/demo/record.py](bench/demo/record.py).
 
 **Measured on one 2-vCPU VM that also ran Kafka, PostgreSQL, Redis, the mock providers and the k6 load generator:**
 

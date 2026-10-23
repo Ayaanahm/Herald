@@ -12,6 +12,7 @@ import argparse
 import json
 import os
 import shutil
+import socket
 import subprocess
 import time
 import urllib.request
@@ -19,6 +20,8 @@ import urllib.request
 from playwright.sync_api import sync_playwright
 
 BASE = "http://localhost:8080"
+PROVIDER = "http://localhost:8090"
+PG = os.environ.get("HERALD_POSTGRES_URL", "postgres://herald:herald@localhost:5432/herald?sslmode=disable")
 ADMIN = "admin-key"
 
 
@@ -36,6 +39,31 @@ def k6(rate, duration, key="load-key"):
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
+def port_open(host, port):
+    try:
+        socket.create_connection((host, port), timeout=0.5).close()
+        return True
+    except OSError:
+        return False
+
+
+def pending():
+    out = subprocess.run(["psql", "-qtA", PG, "-c",
+                          "SELECT count(*) FROM notifications WHERE status IN ('queued','delivering','retrying')"],
+                         capture_output=True, text=True)
+    try:
+        return int(out.stdout.strip())
+    except ValueError:
+        return -1
+
+
+def wait_until(cond, page, timeout_ms=60000):
+    waited = 0
+    while not cond() and waited < timeout_ms:
+        page.wait_for_timeout(500)
+        waited += 500
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="demo.webm")
@@ -45,6 +73,7 @@ def main():
     args = ap.parse_args()
 
     post("/v1/admin/reset-stats", {})
+    urllib.request.urlopen(urllib.request.Request(PROVIDER + "/v1/reset", data=b"{}", method="POST"), timeout=5)
     viddir = "/tmp/herald-demo-video"
     shutil.rmtree(viddir, ignore_errors=True)
 
@@ -63,7 +92,7 @@ def main():
         wait(5000)
         cap(f"k6 sends {args.rate} requests a second. Each is committed to PostgreSQL before the API replies.")
         wait(9000)
-        cap("Kafka spreads the work over the workers. Every channel is a mocked provider with real latency.")
+        cap("Kafka spreads the work over two workers. Providers are mocks with simulated latency and failures.")
         wait(7000)
 
         cap("Now the push provider goes down.")
@@ -71,9 +100,10 @@ def main():
         wait(4000)
         cap("After 5 failures its circuit opens. New notifications skip push and go to email.")
         wait(9000)
-        cap("Push comes back. The breaker sends one test request, then closes.")
         page.click('#chaos button[data-ch="push"]')
-        wait(10000)
+        cap("Push comes back. Each breaker sends one test request, then closes.")
+        wait_until(lambda: page.evaluate("!document.getElementById('br-push').textContent.includes('open')"), page, 20000)
+        wait(6000)
 
         cap("A second tenant sends 150 requests a second against a 50/s limit.")
         burst = k6(150, "10s", key="demo-key")
@@ -88,18 +118,23 @@ def main():
             wait(4000)
             cap("The API keeps accepting: rows are safe in PostgreSQL, which is the outbox.")
             wait(9000)
-            cap("Kafka restarts. The outbox sweeper republishes what never reached it.")
             env = dict(os.environ, KAFKA_HEAP_OPTS="-Xmx768m -Xms768m")
             subprocess.Popen([os.path.join(args.kafka_bin, "kafka-server-start.sh"), args.kafka_config],
                              stdout=open("/tmp/kafka-demo.log", "w"), stderr=subprocess.STDOUT, env=env)
-            wait(16000)
-            cap("The backlog drains. Duplicate copies are dropped by step and fencing checks.")
+            cap("Kafka restarts. Until it's back, notifications wait in PostgreSQL.")
+            wait_until(lambda: port_open("localhost", 9092), page)
+            wait(3000)
+            cap("Kafka is back. The outbox sweeper republishes what never reached it.")
             wait(9000)
+            cap("Messages published twice are dropped by a step check before reaching a provider.")
+            wait(8000)
 
         load.terminate()
         load.wait()
-        cap("Load stops. Every notification ends delivered or in the dead-letter queue.")
-        wait(8000)
+        cap("Load stops. The workers finish what's in flight.")
+        wait_until(lambda: pending() == 0, page, timeout_ms=90000)
+        cap("Every accepted notification reached a final state. None lost.")
+        wait(6000)
         cap("Code, tests and benchmarks: github.com/Ayaanahm/Herald")
         wait(5000)
         video = page.video.path()

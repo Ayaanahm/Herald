@@ -33,13 +33,13 @@ body {
   font-size: 15px;
   line-height: 1.45;
   font-variant-numeric: tabular-nums;
-  padding: 28px 36px 36px;
+  padding: 22px 36px 28px;
   max-width: 1440px;
   margin: 0 auto;
 }
 @media (max-width: 720px) { body { padding: 16px; } }
 
-header { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; margin-bottom: 22px; }
+header { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; margin-bottom: 16px; }
 h1 { font-size: 30px; font-weight: 800; font-stretch: 115%; letter-spacing: -0.01em; margin: 0; }
 .conn { color: var(--ink-3); font-size: 14px; }
 .conn b { font-weight: 600; color: var(--ink-2); }
@@ -54,23 +54,23 @@ h1 { font-size: 30px; font-weight: 800; font-stretch: 115%; letter-spacing: -0.0
 .chaos button:focus-visible { outline: 2px solid var(--push); outline-offset: 2px; }
 .chaos button.down { border-color: var(--fail); color: var(--fail); background: #FCEDEF; }
 
-.headline { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-bottom: 26px;
+.headline { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-bottom: 20px;
   border-top: 2px solid var(--ink); }
 .headline > div { padding: 12px 18px 4px 0; }
-.headline .v { font-size: 46px; font-weight: 780; font-stretch: 118%; line-height: 1.05; letter-spacing: -0.02em; }
+.headline .v { font-size: 42px; font-weight: 780; font-stretch: 118%; line-height: 1.05; letter-spacing: -0.02em; }
 .headline .v small { font-size: 18px; font-weight: 600; font-stretch: 100%; color: var(--ink-2); margin-left: 4px; letter-spacing: 0; }
 .headline .k { color: var(--ink-2); font-size: 14px; margin-top: 4px; }
 @media (max-width: 900px) { .headline { grid-template-columns: repeat(2, 1fr); } .headline .v { font-size: 34px; } }
 
-.main { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 22px; }
+.main { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 20px; }
 @media (max-width: 1000px) { .main { grid-template-columns: 1fr; } }
-section { background: var(--sheet); border-radius: 10px; padding: 18px 20px; }
+section { background: var(--sheet); border-radius: 10px; padding: 16px 20px; }
 h2 { font-size: 16px; font-weight: 700; margin: 0 0 12px; }
 h2 span { font-weight: 450; color: var(--ink-3); margin-left: 6px; }
 
 /* The routing board: one track per channel. */
 .board { position: relative; }
-.lane { display: grid; grid-template-columns: 76px minmax(0, 1fr) 170px; align-items: center; gap: 14px; height: 74px; }
+.lane { display: grid; grid-template-columns: 112px minmax(0, 1fr) 170px; align-items: center; gap: 14px; height: 62px; }
 .lane .name { font-weight: 700; font-size: 17px; }
 .lane .name i { display: block; font-style: normal; font-weight: 450; font-size: 13px; color: var(--ink-3); }
 .track { position: relative; height: 14px; }
@@ -80,25 +80,31 @@ h2 span { font-weight: 450; color: var(--ink-3); margin-left: 6px; }
 .lane .num b small { font-size: 13px; font-weight: 550; color: var(--ink-2); font-stretch: 100%; }
 .lane .num i { display: block; font-style: normal; font-size: 13px; color: var(--ink-3); }
 .lane .num i.bad { color: var(--fail); }
-.drop { margin-left: 76px; padding-left: 14px; height: 26px; font-size: 13px; color: var(--ink-3); display: flex; align-items: center; gap: 8px; }
+.drop { margin-left: 112px; padding-left: 14px; height: 22px; font-size: 13px; color: var(--ink-3); display: flex; align-items: center; gap: 8px; }
 .drop svg { flex: none; }
-.dlq { display: grid; grid-template-columns: 76px 1fr auto; align-items: center; gap: 14px; margin-top: 2px;
+.dlq { display: grid; grid-template-columns: 112px 1fr auto; align-items: center; gap: 14px; margin-top: 2px;
   border-top: 1.5px dashed var(--rule); padding-top: 12px; }
+@media (max-width: 600px) {
+  .lane { grid-template-columns: 1fr auto; height: auto; row-gap: 4px; padding: 8px 0; }
+  .lane .track { grid-column: 1 / -1; grid-row: 2; }
+  .drop { margin-left: 0; padding-left: 0; }
+  .dlq { grid-template-columns: auto 1fr auto; }
+}
 .dlq .name { font-weight: 700; color: var(--fail); }
 .dlq .what { color: var(--ink-2); font-size: 14px; }
 .dlq b { font-size: 26px; font-weight: 760; font-stretch: 112%; color: var(--fail); }
 
-.ledger { display: grid; grid-template-columns: 1fr auto; row-gap: 9px; column-gap: 12px; font-size: 14.5px; }
+.ledger { display: grid; grid-template-columns: 1fr auto; row-gap: 7px; column-gap: 12px; font-size: 14.5px; }
 .ledger dt { color: var(--ink-2); }
 .ledger dd { margin: 0; font-weight: 650; text-align: right; }
 .ledger dd.zero { color: var(--ink-3); font-weight: 500; }
 
-.chart canvas { width: 100%; height: 170px; display: block; }
+.chart canvas { width: 100%; height: 120px; display: block; }
 .legend { display: flex; gap: 16px; font-size: 13px; color: var(--ink-2); margin-top: 6px; }
 .legend span::before { content: ""; display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; background: var(--c); }
 
 .feed { font-size: 13.5px; list-style: none; padding: 0; margin: 0; }
-.feed li { display: grid; grid-template-columns: 74px 74px 1fr; gap: 10px; padding: 5px 0; border-bottom: 1px solid #EDF0F4; }
+.feed li { display: grid; grid-template-columns: 74px 74px 1fr; gap: 10px; padding: 4px 0; border-bottom: 1px solid #EDF0F4; }
 .feed li:last-child { border-bottom: 0; }
 .feed .id { color: var(--ink-3); }
 .feed .st { font-weight: 650; }
@@ -107,7 +113,7 @@ h2 span { font-weight: 450; color: var(--ink-3); margin-left: 6px; }
 .feed .d { color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .empty { color: var(--ink-3); font-size: 14px; }
 
-.side { display: grid; gap: 22px; align-content: start; }
+.side { display: grid; gap: 20px; align-content: start; }
 
 #caption {
   position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%);
@@ -355,7 +361,7 @@ function drawChart() {
 const feed = [];
 function onEvents(evs) {
   for (const e of evs) feed.unshift(e);
-  feed.length = Math.min(feed.length, 12);
+  feed.length = Math.min(feed.length, 9);
   $("feed").innerHTML = feed.map(e => {
     const t = new Date(e.at).toLocaleTimeString([], { hour12: false });
     let d = e.channel ? `via ${e.channel}` : "";
