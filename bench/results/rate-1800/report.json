@@ -1,0 +1,17 @@
+{
+  "delivered": 105901,
+  "delivered_by_channel": {
+    "email": 21239,
+    "push": 84662
+  },
+  "e2e_latency_ms": {
+    "max": 23654.636,
+    "p50": 1082.791,
+    "p95": 2357.867,
+    "p99": 2824.933
+  },
+  "status_counts": {
+    "delivered": 105901
+  },
+  "unpublished": 0
+}

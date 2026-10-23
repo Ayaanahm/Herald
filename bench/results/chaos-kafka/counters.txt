@@ -1,0 +1,7 @@
+accepted	36000
+retried	716
+delivered	36000
+delivered:push	28936
+delivered:email	7064
+stale_dropped	1636
+republished	39

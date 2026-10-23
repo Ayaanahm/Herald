@@ -1,0 +1,7 @@
+accepted	36001
+delivered	35998
+delivered:push	28705
+delivered:email	7293
+retried	747
+stale_dropped	1292
+provider_duplicate	4

@@ -1,0 +1,19 @@
+{
+  "target_rate": 1200,
+  "duration": "60s",
+  "requests": 71992,
+  "achieved_rps": 1199.7536965588656,
+  "accepted": 71992,
+  "rate_limited": 0,
+  "other_status": 0,
+  "failed_rate": 0,
+  "dropped_iterations": 8,
+  "latency_ms": {
+    "avg": 23.64412770521738,
+    "p50": 15.525896,
+    "p90": 53.6489532,
+    "p95": 72.2128803999999,
+    "p99": 115.27681868999989,
+    "max": 500.429032
+  }
+}

@@ -1,0 +1,2 @@
+t=15s kill -9 worker pid 9895 (no graceful shutdown, offsets uncommitted)
+t=30s starting a replacement worker

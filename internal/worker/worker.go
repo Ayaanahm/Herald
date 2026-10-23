@@ -140,6 +140,10 @@ func (w *Worker) consume(ctx context.Context, topic string, delayed bool) error 
 		kgo.AutoCommitMarks(),
 		kgo.BlockRebalanceOnPoll(),
 		kgo.FetchMaxWait(200*time.Millisecond),
+		// A crashed worker never says goodbye; Kafka reassigns its partitions
+		// only after this timeout. The default is 45 s.
+		kgo.SessionTimeout(10*time.Second),
+		kgo.HeartbeatInterval(time.Second),
 	)
 	if err != nil {
 		return err

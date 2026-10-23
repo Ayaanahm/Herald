@@ -1,0 +1,8 @@
+accepted	36001
+delivered	36001
+delivered:push	21485
+retried	788
+delivered:email	12650
+breaker_skip	7303
+delivered_fallback	7303
+delivered:sms	1866

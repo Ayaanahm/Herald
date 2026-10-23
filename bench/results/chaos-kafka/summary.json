@@ -1,0 +1,25 @@
+{
+  "accepted_by_api": 36000,
+  "rows_in_postgres": 36000,
+  "in_final_state": 36000,
+  "still_pending": 0,
+  "drain_seconds_after_load": 2,
+  "api_errors": 0,
+  "api_p99_ms": 102,
+  "status_counts": {
+    "delivered": 36000
+  },
+  "delivered_by_channel": {
+    "email": 7064,
+    "push": 28936
+  },
+  "provider_sent": 36000,
+  "provider_duplicates_suppressed": 0,
+  "provider_stale_fenced": 0,
+  "republished_by_sweeper": 39,
+  "stale_copies_dropped": 1636,
+  "fallback_deliveries": 0,
+  "breaker_skips": 0,
+  "retries": 716,
+  "lost": 0
+}

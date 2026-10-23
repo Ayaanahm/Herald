@@ -8,8 +8,8 @@ It's built to show how an event-driven backend stays correct under concurrency a
 
 **Measured on one 2-vCPU VM that also ran Kafka, PostgreSQL, Redis, the mock providers and the k6 load generator:**
 
-- **1,791 requests/s sustained** for 60 s with zero errors, API p99 168 ms, median delivery 0.30 s ([all runs](bench/README.md))
-- **Coalescing round trips cut API p99 from 286 ms to 119 ms** and median delivery from 3.7 s to 0.21 s at 1,200 req/s
+- **1,600 requests/s sustained** for 60 s with zero errors, API p99 141 ms, median delivery 0.26 s ([all runs](bench/README.md))
+- **Coalescing round trips cut API p99 from 280 ms to 81 ms** and median delivery from 7.6 s to 0.19 s at 1,200 req/s
 - **No accepted notification lost** when Kafka was stopped for 15 s, a worker was `kill -9`'d, or the push provider went down mid-load ([chaos results](#failure-handling))
 
 ## How it works
@@ -55,22 +55,26 @@ flowchart LR
 
 **Chaos runs** (600 req/s for 60 s, two workers, fault injected at 15 s and repaired at 30 s, [script](bench/chaos.sh)):
 
-CHAOS_TABLE
+| Fault (at 15 s, repaired at 30 s) | Accepted | Lost | API errors | API p99 | Delivery p99 | What happened |
+|---|---|---|---|---|---|---|
+| Kafka broker stopped | 36,000 | **0** | 0 | 102 ms | 31.2 s | API kept answering `202`; sweeper republished 39 rows; 1,636 duplicate copies dropped; 0 repeat sends |
+| A worker `kill -9`'d, replaced 15 s later | 36,001 | **0** | 0 | 41 ms | 9.5 s | Survivor took its partitions after the 10 s session timeout; 1,292 redelivered copies dropped; 4 in-flight sends repeated and absorbed by the provider's idempotency key |
+| Push provider down | 36,001 | **0** | 0 | 27 ms | 1.2 s | Circuit opened; 7,303 notifications delivered by email or SMS instead; 0 repeat sends |
 
 ## Benchmarks
 
-Everything ran on one 2-vCPU, 8 GB VM, so the API, worker, Kafka, PostgreSQL, Redis, the mock providers and k6 itself all shared two cores. k6 alone used about 40% of one core. A real deployment would put these on separate machines; treat these numbers as a floor, not a ceiling.
+Everything ran on one 2-vCPU, 7.8 GB VM, so the API, worker, Kafka, PostgreSQL, Redis, the mock providers and k6 itself all shared two cores. k6 alone used about 40% of one core. A real deployment would put these on separate machines; treat these numbers as a floor, not a ceiling.
 
 k6 uses an open model (`constant-arrival-rate`): it starts requests on schedule whether or not earlier ones have finished, so a slow server shows up as latency and unsent requests, not a politely lower rate. "Delivery" is the time from the API accepting a notification to the provider confirming it, measured in PostgreSQL. The mock providers add 7–90 ms of latency per call and fail 2% of calls at random, so some deliveries include a retry.
 
 | Rate | Achieved | Not sent | Errors | API p50 | API p99 | Delivery p50 | Delivery p99 |
 |---|---|---|---|---|---|---|---|
-| 1,400/s | 1,400/s | 0.0% | 0% | 13 ms | 92 ms | 0.19 s | 1.28 s |
-| 1,600/s | 1,598/s | 0.1% | 0% | 18 ms | 137 ms | 0.22 s | 1.31 s |
-| **1,800/s** | **1,791/s** | **0.4%** | **0%** | **29 ms** | **168 ms** | **0.30 s** | **1.35 s** |
-| 2,000/s | 1,890/s | 5.3% | 0% | 71 ms | 343 ms | 1.24 s | 3.04 s |
+| 1,400/s | 1,400/s | 0.0% | 0% | 17 ms | 100 ms | 0.22 s | 1.25 s |
+| **1,600/s** | **1,598/s** | **0.1%** | **0%** | **23 ms** | **141 ms** | **0.26 s** | **1.29 s** |
+| 1,800/s | 1,764/s | 1.9% | 0% | 50 ms | 243 ms | 1.08 s | 2.82 s |
+| 2,000/s | 1,889/s | 5.2% | 0% | 72 ms | 343 ms | 1.32 s | 3.75 s |
 
-Delivery p99 sits near 1.3 s at every rate below saturation: that is the 1 s retry delay for the ~2% of calls the mock providers fail on purpose.
+Up to 1,600 req/s, delivery keeps pace with intake, and p99 sits near 1.3 s: that is the 1 s retry delay for the ~2% of calls the mock providers fail on purpose. From 1,800 req/s the machine is saturated and delivery starts to queue. Single runs on a shared VM vary: an earlier 1,800 req/s run, before the deadlock fix described below, reached 1,791/s with a 168 ms p99.
 
 ### What actually made it fast
 
@@ -80,12 +84,18 @@ The fix was [coalescing](internal/coalesce/coalesce.go): when many goroutines ne
 
 | Configuration | Not sent | API p99 | Delivery p50 | Delivery p99 |
 |---|---|---|---|---|
-| Both on | 0.0% | 119 ms | 0.21 s | 1.65 s |
-| No coalescing | 3.0% | 286 ms | 3.68 s | 9.00 s |
-| No insert batching | 0.0% | 106 ms | 0.19 s | 1.27 s |
-| Neither | 6.0% | 527 ms | 7.29 s | 19.03 s |
+| Both on | 0.0% | 81 ms | 0.19 s | 1.22 s |
+| No coalescing | 2.0% | 280 ms | 7.58 s | 19.49 s |
+| No insert batching | 0.0% | 115 ms | 0.21 s | 1.24 s |
+| Neither | 8.5% | 672 ms | 10.17 s | 25.16 s |
 
-Insert batching, the optimization I expected to matter, made no difference at 1,200 req/s: batches averaged 2.3 rows, and PostgreSQL already groups concurrent commits. It starts to count near saturation: at 1,800 req/s, turning it off raised API p99 from 168 ms to 537 ms.
+Insert batching, the optimization I expected to matter, did little at 1,200 req/s: batches averaged 2.2 rows. It matters near saturation, where batches grow (6.2 rows at 1,800 req/s): there, turning it off raised API p99 from 243 ms to 575 ms and left 10.3% of requests unsent instead of 1.9%.
+
+### The bug the chaos tests found
+
+Batching created a deadlock. The API's batched "mark published" UPDATE and the workers' batched "claim" UPDATE touched the same rows in different orders, so PostgreSQL aborted one of them. The worker retried, and because the provider had already accepted that notification, the retry sent it again. Only the provider's idempotency key stopped 26 duplicate sends in one chaos run.
+
+Every multi-row update now locks its rows in id order first. [`TestBatchedUpdatesDoNotDeadlock`](internal/store/store_test.go) failed reliably before the fix and passes after; the same chaos run then showed 0 repeat sends.
 
 Full method, raw JSON for every run, and commands to reproduce: [bench/README.md](bench/README.md).
 

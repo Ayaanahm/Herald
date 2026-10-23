@@ -1,0 +1,3 @@
+rate=1200 duration=60s env=
+host: 2 vCPU, 7 GB RAM, everything on one machine
+drain_seconds_after_load=4 remaining=0

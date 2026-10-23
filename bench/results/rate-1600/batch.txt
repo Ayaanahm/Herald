@@ -1,0 +1,2 @@
+herald_insert_batch_size_sum 95935
+herald_insert_batch_size_count 27283

@@ -1,0 +1,18 @@
+{
+  "delivered": 113763,
+  "delivered_by_channel": {
+    "email": 23031,
+    "push": 90732
+  },
+  "e2e_latency_ms": {
+    "max": 9329.105,
+    "p50": 1323.889,
+    "p95": 3148.6021999999994,
+    "p99": 3750.5194400000028
+  },
+  "status_counts": {
+    "delivered": 113763,
+    "superseded": 1
+  },
+  "unpublished": 0
+}
