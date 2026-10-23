@@ -386,3 +386,104 @@ func (s *Store) StatusCounts(ctx context.Context) (map[string]int64, error) {
 	}
 	return out, rows.Err()
 }
+
+// ClaimReq is one Claim inside a batch.
+type ClaimReq struct {
+	ID    uuid.UUID
+	Step  int
+	Fence int64
+}
+
+// ClaimRes is the outcome of one ClaimReq.
+type ClaimRes struct {
+	Seq int64
+	OK  bool
+}
+
+// ClaimMany is Claim for many notifications in one statement. Each row is
+// still guarded by its own step and fence.
+func (s *Store) ClaimMany(ctx context.Context, reqs []ClaimReq) ([]ClaimRes, error) {
+	ids := make([]uuid.UUID, len(reqs))
+	steps := make([]int32, len(reqs))
+	fences := make([]int64, len(reqs))
+	for i, r := range reqs {
+		ids[i], steps[i], fences[i] = r.ID, int32(r.Step), r.Fence
+	}
+	rows, err := s.Pool.Query(ctx, `
+		UPDATE notifications n
+		SET status = 'delivering', fence = u.fence, attempts = n.attempts + 1, updated_at = now()
+		FROM unnest($1::uuid[], $2::int[], $3::bigint[]) AS u(id, step, fence)
+		WHERE n.id = u.id AND n.step = u.step AND n.fence < u.fence
+		  AND n.status IN ('queued', 'retrying', 'delivering')
+		RETURNING n.id, n.seq`, ids, steps, fences)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	got := make(map[uuid.UUID]int64, len(reqs))
+	for rows.Next() {
+		var id uuid.UUID
+		var seq int64
+		if err := rows.Scan(&id, &seq); err != nil {
+			return nil, err
+		}
+		got[id] = seq
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	out := make([]ClaimRes, len(reqs))
+	for i, r := range reqs {
+		seq, ok := got[r.ID]
+		out[i] = ClaimRes{Seq: seq, OK: ok}
+	}
+	return out, nil
+}
+
+// DeliveredReq marks one notification without a collapse key as delivered.
+type DeliveredReq struct {
+	ID      uuid.UUID
+	Fence   int64
+	Channel string
+}
+
+// MarkDeliveredMany marks many notifications delivered in one statement.
+// The result is ErrFenced for rows a newer lock holder owns, nil otherwise.
+// Notifications with a collapse key must use MarkDelivered, which also
+// advances collapse_state in the same transaction.
+func (s *Store) MarkDeliveredMany(ctx context.Context, reqs []DeliveredReq) ([]error, error) {
+	ids := make([]uuid.UUID, len(reqs))
+	fences := make([]int64, len(reqs))
+	chans := make([]string, len(reqs))
+	for i, r := range reqs {
+		ids[i], fences[i], chans[i] = r.ID, r.Fence, r.Channel
+	}
+	rows, err := s.Pool.Query(ctx, `
+		UPDATE notifications n
+		SET status = 'delivered', channel = u.channel, delivered_at = now(), updated_at = now(), last_error = NULL
+		FROM unnest($1::uuid[], $2::bigint[], $3::text[]) AS u(id, fence, channel)
+		WHERE n.id = u.id AND n.fence = u.fence
+		RETURNING n.id`, ids, fences, chans)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ok := make(map[uuid.UUID]bool, len(reqs))
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ok[id] = true
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	out := make([]error, len(reqs))
+	for i, r := range reqs {
+		if !ok[r.ID] {
+			out[i] = ErrFenced
+		}
+	}
+	return out, nil
+}

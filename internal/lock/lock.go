@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+
+	"github.com/Ayaanahm/herald/internal/redisx"
 )
 
 var ErrNotAcquired = errors.New("lock: not acquired")
@@ -46,10 +48,12 @@ return 0
 const fenceKey = "herald:fence"
 
 type Locker struct {
-	rdb redis.Scripter
+	run redisx.Runner
 }
 
-func New(rdb redis.Scripter) *Locker { return &Locker{rdb: rdb} }
+// New returns a Locker. With a *redis.Client, concurrent lock operations are
+// pipelined together (see package redisx).
+func New(rdb redis.Scripter) *Locker { return &Locker{run: redisx.For(rdb)} }
 
 // Lease is a held lock.
 type Lease struct {
@@ -62,7 +66,7 @@ type Lease struct {
 
 // TryAcquire makes one attempt.
 func (l *Locker) TryAcquire(ctx context.Context, key, owner string, ttl time.Duration) (*Lease, error) {
-	fence, err := acquire.Run(ctx, l.rdb, []string{key, fenceKey}, owner, ttl.Milliseconds()).Int64()
+	fence, err := l.run(ctx, acquire, []string{key, fenceKey}, owner, ttl.Milliseconds()).Int64()
 	if err != nil {
 		return nil, err
 	}
@@ -99,12 +103,12 @@ func (l *Locker) Acquire(ctx context.Context, key, owner string, ttl, wait time.
 // Release frees the lock if it is still ours. Returns false if it had expired
 // and possibly been taken by someone else.
 func (s *Lease) Release(ctx context.Context) (bool, error) {
-	n, err := release.Run(ctx, s.l.rdb, []string{s.Key}, s.token).Int64()
+	n, err := s.l.run(ctx, release, []string{s.Key}, s.token).Int64()
 	return n == 1, err
 }
 
 // Extend renews the lease. Returns false if we no longer hold it.
 func (s *Lease) Extend(ctx context.Context) (bool, error) {
-	n, err := extend.Run(ctx, s.l.rdb, []string{s.Key}, s.token, s.TTL.Milliseconds()).Int64()
+	n, err := s.l.run(ctx, extend, []string{s.Key}, s.token, s.TTL.Milliseconds()).Int64()
 	return n == 1, err
 }

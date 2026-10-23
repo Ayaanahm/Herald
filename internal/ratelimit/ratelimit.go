@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+
+	"github.com/Ayaanahm/herald/internal/redisx"
 )
 
 // Result of one Allow call.
@@ -84,7 +86,7 @@ return {0, 0, math.ceil(retry)}
 `)
 
 type redisLimiter struct {
-	rdb    redis.Scripter
+	run    redisx.Runner
 	script *redis.Script
 	prefix string
 	seq    atomic.Uint64
@@ -93,12 +95,12 @@ type redisLimiter struct {
 
 // NewSlidingLog returns the exact sliding-log limiter.
 func NewSlidingLog(rdb redis.Scripter, node string) Limiter {
-	return &redisLimiter{rdb: rdb, script: slidingLog, prefix: "rl:log:", node: node}
+	return &redisLimiter{run: redisx.For(rdb), script: slidingLog, prefix: "rl:log:", node: node}
 }
 
 // NewSlidingCounter returns the approximate, constant-memory limiter.
 func NewSlidingCounter(rdb redis.Scripter) Limiter {
-	return &redisLimiter{rdb: rdb, script: slidingCounter, prefix: "rl:ctr:"}
+	return &redisLimiter{run: redisx.For(rdb), script: slidingCounter, prefix: "rl:ctr:"}
 }
 
 func (l *redisLimiter) Allow(ctx context.Context, key string, limit int, window time.Duration) (Result, error) {
@@ -108,7 +110,7 @@ func (l *redisLimiter) Allow(ctx context.Context, key string, limit int, window 
 		// microsecond would collapse into one entry.
 		args = append(args, l.node+":"+strconv.FormatUint(l.seq.Add(1), 36))
 	}
-	v, err := l.script.Run(ctx, l.rdb, []string{l.prefix + key}, args...).Int64Slice()
+	v, err := l.run(ctx, l.script, []string{l.prefix + key}, args...).Int64Slice()
 	if err != nil {
 		return Result{}, fmt.Errorf("ratelimit: %w", err)
 	}

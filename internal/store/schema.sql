@@ -23,6 +23,11 @@ CREATE TABLE IF NOT EXISTS notifications (
     delivered_at    timestamptz
 );
 
+-- Leave 30% of each page free so the worker's status updates (status, fence,
+-- attempts, timestamps: none of them indexed) can be HOT updates that rewrite
+-- the row in place without touching any index.
+ALTER TABLE notifications SET (fillfactor = 70);
+
 CREATE UNIQUE INDEX IF NOT EXISTS notifications_idem
     ON notifications (tenant_id, idempotency_key) WHERE idempotency_key IS NOT NULL;
 

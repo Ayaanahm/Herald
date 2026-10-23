@@ -33,6 +33,7 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 
 	"github.com/Ayaanahm/herald/internal/breaker"
+	"github.com/Ayaanahm/herald/internal/coalesce"
 	"github.com/Ayaanahm/herald/internal/config"
 	"github.com/Ayaanahm/herald/internal/events"
 	"github.com/Ayaanahm/herald/internal/lock"
@@ -53,6 +54,10 @@ var (
 		Name: "herald_provider_request_seconds", Help: "Provider call latency.",
 		Buckets: prometheus.ExponentialBuckets(0.002, 2, 12),
 	}, []string{"channel"})
+	mSQLBatch = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "herald_worker_sql_batch_size", Help: "Rows per coalesced worker statement.",
+		Buckets: []float64{1, 2, 4, 8, 16, 32, 64, 128, 256},
+	}, []string{"statement"})
 	mLockWait = promauto.NewHistogram(prometheus.HistogramOpts{
 		Name: "herald_lock_wait_seconds", Help: "Time to acquire the delivery lock.",
 		Buckets: prometheus.ExponentialBuckets(0.0005, 2, 14),
@@ -75,6 +80,11 @@ type Worker struct {
 	http     *http.Client
 	breakers map[string]*breaker.Breaker
 	Hooks    Hooks
+
+	// Concurrent deliveries share statements: one UPDATE claims (or marks
+	// delivered) every notification that is ready at that moment.
+	claims    *coalesce.Coalescer[store.ClaimReq, store.ClaimRes]
+	delivered *coalesce.Coalescer[store.DeliveredReq, error]
 }
 
 func New(cfg config.Config, name string, st *store.Store, rdb *redis.Client, producer *kgo.Client, ev *events.Publisher) *Worker {
@@ -92,6 +102,8 @@ func New(cfg config.Config, name string, st *store.Store, rdb *redis.Client, pro
 	for _, ch := range []string{"push", "email", "sms"} {
 		w.breakers[ch] = breaker.New(5, 5*time.Second, nil)
 	}
+	w.claims = coalesce.New(256, 4, st.ClaimMany, func(n int) { mSQLBatch.WithLabelValues("claim").Observe(float64(n)) })
+	w.delivered = coalesce.New(256, 4, st.MarkDeliveredMany, func(n int) { mSQLBatch.WithLabelValues("delivered").Observe(float64(n)) })
 	return w
 }
 
@@ -286,11 +298,12 @@ func (w *Worker) Handle(ctx context.Context, m queue.Message) error {
 		cancel()
 	}()
 
-	seq, ok, err := w.store.Claim(ctx, m.ID, m.Step, lease.Fence)
+	claim, err := w.claims.Do(ctx, store.ClaimReq{ID: m.ID, Step: m.Step, Fence: lease.Fence})
 	if err != nil {
 		return err
 	}
-	if !ok {
+	seq := claim.Seq
+	if !claim.OK {
 		// Already delivered, cancelled, moved to a later step, or claimed by a
 		// newer lock holder: this copy of the message is stale.
 		w.events.Count("stale_dropped", 1)
@@ -340,7 +353,7 @@ func (w *Worker) Handle(ctx context.Context, m queue.Message) error {
 		switch res {
 		case sendOK:
 			br.Success()
-			if err := w.store.MarkDelivered(ctx, m.ID, lease.Fence, ch, m.TenantID, m.RecipientID, m.CollapseKey, seq); err != nil {
+			if err := w.markDelivered(ctx, m, lease.Fence, ch, seq); err != nil {
 				return w.fencedOK(err)
 			}
 			lat := time.Since(time.UnixMilli(m.CreatedAt))
@@ -376,6 +389,18 @@ func (w *Worker) Handle(ctx context.Context, m queue.Message) error {
 		}
 	}
 	return w.deadLetter(ctx, m, lease.Fence)
+}
+
+func (w *Worker) markDelivered(ctx context.Context, m queue.Message, fence int64, ch string, seq int64) error {
+	if m.CollapseKey != "" {
+		// Must advance collapse_state in the same transaction.
+		return w.store.MarkDelivered(ctx, m.ID, fence, ch, m.TenantID, m.RecipientID, m.CollapseKey, seq)
+	}
+	rowErr, err := w.delivered.Do(ctx, store.DeliveredReq{ID: m.ID, Fence: fence, Channel: ch})
+	if err != nil {
+		return err
+	}
+	return rowErr
 }
 
 // fencedOK turns a fencing rejection into a handled outcome: a newer lock

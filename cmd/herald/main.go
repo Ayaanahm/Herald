@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -25,6 +26,7 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 
 	"github.com/Ayaanahm/herald/internal/api"
+	"github.com/Ayaanahm/herald/internal/coalesce"
 	"github.com/Ayaanahm/herald/internal/config"
 	"github.com/Ayaanahm/herald/internal/events"
 	"github.com/Ayaanahm/herald/internal/lock"
@@ -46,6 +48,9 @@ func main() {
 		fatal(err)
 	}
 	queue.SetPrefix(os.Getenv("HERALD_TOPIC_PREFIX"))
+	if v, err := strconv.Atoi(os.Getenv("HERALD_COALESCE_MAX")); err == nil {
+		coalesce.MaxOverride = v
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -157,7 +162,7 @@ func runAPI(ctx context.Context, cfg config.Config) error {
 		go func() { defer wg.Done(); f(bg) }()
 	}
 	slog.Info("api listening", "addr", cfg.HTTPAddr, "node", node, "batch_max", cfg.BatchMax, "ratelimit", cfg.RateLimitAlgo)
-	err = serve(ctx, cfg.HTTPAddr, srv.Routes())
+	err = serve(ctx, cfg.HTTPAddr, withPprof(srv.Routes()))
 	cancel() // stop background loops only after in-flight requests have finished
 	wg.Wait()
 	return err
@@ -185,7 +190,7 @@ func runWorker(ctx context.Context, cfg config.Config) error {
 	w := worker.New(cfg, node, st, rdb, prod, ev)
 	metricsAddr := os.Getenv("HERALD_METRICS_ADDR")
 	if metricsAddr != "" {
-		go serve(ctx, metricsAddr, metricsMux())
+		go serve(ctx, metricsAddr, withPprof(metricsMux()))
 	}
 	slog.Info("worker started", "node", node, "concurrency", cfg.WorkerConcurrency)
 	err = w.Run(ctx)
