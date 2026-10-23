@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Herald live</title>
+<style>
+@font-face {
+  font-family: "Archivo";
+  src: url("archivo.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  font-display: block;
+}
+:root {
+  color-scheme: light;
+  --paper: #EEF1F5;
+  --sheet: #FFFFFF;
+  --ink: #1B2433;
+  --ink-2: #4A5568;
+  --ink-3: #8090A6;
+  --rule: #D5DCE6;
+  --push: #2F5BEA;
+  --email: #0E8A7E;
+  --sms: #7A4FD0;
+  --fail: #D2344B;
+  --retry: #B7790A;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--paper); color: var(--ink); }
+body {
+  font-family: "Archivo", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+  padding: 28px 36px 36px;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+@media (max-width: 720px) { body { padding: 16px; } }
+
+header { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; margin-bottom: 22px; }
+h1 { font-size: 30px; font-weight: 800; font-stretch: 115%; letter-spacing: -0.01em; margin: 0; }
+.conn { color: var(--ink-3); font-size: 14px; }
+.conn b { font-weight: 600; color: var(--ink-2); }
+.conn.live b { color: var(--email); }
+.chaos { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.chaos button {
+  font: inherit; font-size: 14px; font-weight: 600;
+  border: 1.5px solid var(--rule); background: var(--sheet); color: var(--ink);
+  padding: 7px 12px; border-radius: 6px; cursor: pointer;
+}
+.chaos button:hover { border-color: var(--ink-3); }
+.chaos button:focus-visible { outline: 2px solid var(--push); outline-offset: 2px; }
+.chaos button.down { border-color: var(--fail); color: var(--fail); background: #FCEDEF; }
+
+.headline { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-bottom: 26px;
+  border-top: 2px solid var(--ink); }
+.headline > div { padding: 12px 18px 4px 0; }
+.headline .v { font-size: 46px; font-weight: 780; font-stretch: 118%; line-height: 1.05; letter-spacing: -0.02em; }
+.headline .v small { font-size: 18px; font-weight: 600; font-stretch: 100%; color: var(--ink-2); margin-left: 4px; letter-spacing: 0; }
+.headline .k { color: var(--ink-2); font-size: 14px; margin-top: 4px; }
+@media (max-width: 900px) { .headline { grid-template-columns: repeat(2, 1fr); } .headline .v { font-size: 34px; } }
+
+.main { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 22px; }
+@media (max-width: 1000px) { .main { grid-template-columns: 1fr; } }
+section { background: var(--sheet); border-radius: 10px; padding: 18px 20px; }
+h2 { font-size: 16px; font-weight: 700; margin: 0 0 12px; }
+h2 span { font-weight: 450; color: var(--ink-3); margin-left: 6px; }
+
+/* The routing board: one track per channel. */
+.board { position: relative; }
+.lane { display: grid; grid-template-columns: 76px minmax(0, 1fr) 170px; align-items: center; gap: 14px; height: 74px; }
+.lane .name { font-weight: 700; font-size: 17px; }
+.lane .name i { display: block; font-style: normal; font-weight: 450; font-size: 13px; color: var(--ink-3); }
+.track { position: relative; height: 14px; }
+.track canvas { position: absolute; inset: -12px 0; width: 100%; height: 38px; }
+.lane .num { text-align: right; }
+.lane .num b { font-size: 26px; font-weight: 760; font-stretch: 112%; }
+.lane .num b small { font-size: 13px; font-weight: 550; color: var(--ink-2); font-stretch: 100%; }
+.lane .num i { display: block; font-style: normal; font-size: 13px; color: var(--ink-3); }
+.lane .num i.bad { color: var(--fail); }
+.drop { margin-left: 76px; padding-left: 14px; height: 26px; font-size: 13px; color: var(--ink-3); display: flex; align-items: center; gap: 8px; }
+.drop svg { flex: none; }
+.dlq { display: grid; grid-template-columns: 76px 1fr auto; align-items: center; gap: 14px; margin-top: 2px;
+  border-top: 1.5px dashed var(--rule); padding-top: 12px; }
+.dlq .name { font-weight: 700; color: var(--fail); }
+.dlq .what { color: var(--ink-2); font-size: 14px; }
+.dlq b { font-size: 26px; font-weight: 760; font-stretch: 112%; color: var(--fail); }
+
+.ledger { display: grid; grid-template-columns: 1fr auto; row-gap: 9px; column-gap: 12px; font-size: 14.5px; }
+.ledger dt { color: var(--ink-2); }
+.ledger dd { margin: 0; font-weight: 650; text-align: right; }
+.ledger dd.zero { color: var(--ink-3); font-weight: 500; }
+
+.chart canvas { width: 100%; height: 170px; display: block; }
+.legend { display: flex; gap: 16px; font-size: 13px; color: var(--ink-2); margin-top: 6px; }
+.legend span::before { content: ""; display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; background: var(--c); }
+
+.feed { font-size: 13.5px; list-style: none; padding: 0; margin: 0; }
+.feed li { display: grid; grid-template-columns: 74px 74px 1fr; gap: 10px; padding: 5px 0; border-bottom: 1px solid #EDF0F4; }
+.feed li:last-child { border-bottom: 0; }
+.feed .id { color: var(--ink-3); }
+.feed .st { font-weight: 650; }
+.feed .st.delivered { color: var(--email); } .feed .st.retrying { color: var(--retry); }
+.feed .st.failed { color: var(--fail); } .feed .st.superseded { color: var(--ink-3); }
+.feed .d { color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.empty { color: var(--ink-3); font-size: 14px; }
+
+.side { display: grid; gap: 22px; align-content: start; }
+
+#caption {
+  position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%);
+  background: var(--ink); color: #fff; font-size: 22px; font-weight: 600; font-stretch: 105%;
+  padding: 14px 24px; border-radius: 10px; max-width: min(1000px, 90vw); text-align: center;
+  box-shadow: 0 10px 40px rgba(27, 36, 51, .25); display: none;
+}
+#caption.on { display: block; }
+@media (prefers-reduced-motion: reduce) { .track canvas { display: none; } .track { border-bottom: 3px solid var(--rule); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Herald</h1>
+  <div class="conn" id="conn"><b>Connecting</b></div>
+  <div class="chaos" id="chaos" aria-label="Fault injection">
+    <button data-ch="push">Take push down</button>
+    <button data-ch="email">Take email down</button>
+    <button data-ch="sms">Take sms down</button>
+  </div>
+</header>
+
+<div class="headline">
+  <div><div class="v" id="acc">0<small>/s</small></div><div class="k">Accepted by the API</div></div>
+  <div><div class="v" id="del">0<small>/s</small></div><div class="k">Delivered to a device</div></div>
+  <div><div class="v" id="p50">–<small>ms</small></div><div class="k">Median, accepted to delivered</div></div>
+  <div><div class="v" id="p99">–<small>ms</small></div><div class="k">99th percentile</div></div>
+</div>
+
+<div class="main">
+  <div class="side">
+    <section class="board" aria-label="Delivery by channel">
+      <h2>Where notifications go<span>each falls to the next channel when one fails</span></h2>
+      <div id="lanes"></div>
+      <div class="dlq">
+        <div class="name">DLQ</div>
+        <div class="what">Failed on every channel, kept for inspection</div>
+        <b id="dlq">0</b>
+      </div>
+    </section>
+    <section class="chart">
+      <h2>Throughput<span>last 2 minutes</span></h2>
+      <canvas id="chart"></canvas>
+      <div class="legend"><span style="--c: var(--ink)">Accepted</span><span style="--c: var(--email)">Delivered</span><span style="--c: var(--fail)">Rejected by rate limit</span></div>
+    </section>
+  </div>
+  <div class="side">
+    <section>
+      <h2>Safety checks<span>since reset</span></h2>
+      <dl class="ledger" id="ledger"></dl>
+    </section>
+    <section>
+      <h2>Latest status changes</h2>
+      <ul class="feed" id="feed"><li class="empty">Waiting for traffic</li></ul>
+    </section>
+  </div>
+</div>
+<div id="caption" role="status"></div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const KEY = params.get("key") || "";
+const CHANNELS = [
+  { id: "push", label: "Push", color: getComputedStyle(document.documentElement).getPropertyValue("--push").trim() },
+  { id: "email", label: "Email", color: getComputedStyle(document.documentElement).getPropertyValue("--email").trim() },
+  { id: "sms", label: "SMS", color: getComputedStyle(document.documentElement).getPropertyValue("--sms").trim() },
+];
+const FAIL = "#D2344B", INK = "#1B2433", EMAIL = "#0E8A7E";
+const fmt = new Intl.NumberFormat("en-US");
+const $ = id => document.getElementById(id);
+
+// ---- lanes ----
+const lanesEl = $("lanes");
+CHANNELS.forEach((c, i) => {
+  lanesEl.insertAdjacentHTML("beforeend", `
+    <div class="lane" id="lane-${c.id}">
+      <div class="name">${c.label}<i id="br-${c.id}">circuit closed</i></div>
+      <div class="track"><canvas id="tr-${c.id}"></canvas></div>
+      <div class="num"><b id="r-${c.id}">0<small>/s</small></b><i id="f-${c.id}">no failed attempts</i></div>
+    </div>`);
+  if (i < CHANNELS.length - 1) {
+    lanesEl.insertAdjacentHTML("beforeend", `
+      <div class="drop"><svg width="12" height="18" viewBox="0 0 12 18" aria-hidden="true"><path d="M6 0v15M1 10l5 6 5-6" fill="none" stroke="#8090A6" stroke-width="1.6"/></svg>
+      <span id="fb-${c.id}">falls back to ${CHANNELS[i + 1].label.toLowerCase()} when ${c.label.toLowerCase()} fails</span></div>`);
+  }
+});
+
+const laneState = {};
+CHANNELS.forEach(c => laneState[c.id] = { rate: 0, open: false, half: false, dots: [], acc: 0 });
+
+function sizeCanvas(cv) {
+  const r = cv.getBoundingClientRect(), d = devicePixelRatio || 1;
+  if (cv.width !== Math.round(r.width * d) || cv.height !== Math.round(r.height * d)) {
+    cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d);
+  }
+  const ctx = cv.getContext("2d"); ctx.setTransform(d, 0, 0, d, 0, 0);
+  return [ctx, r.width, r.height];
+}
+
+let lastFrame = performance.now();
+function drawLanes(now) {
+  const dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now;
+  CHANNELS.forEach(c => {
+    const s = laneState[c.id], cv = $("tr-" + c.id);
+    const [ctx, w, h] = sizeCanvas(cv); const y = h / 2;
+    ctx.clearRect(0, 0, w, h);
+    const gapX = w * 0.55;
+    // The track. An open breaker cuts it, and nothing crosses the cut.
+    ctx.lineCap = "round"; ctx.lineWidth = 4;
+    ctx.strokeStyle = s.open ? "#F2C4CB" : "#DCE3EC";
+    if (s.open) {
+      ctx.beginPath(); ctx.moveTo(2, y); ctx.lineTo(gapX - 14, y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(gapX + 14, y); ctx.lineTo(w - 2, y); ctx.stroke();
+      ctx.strokeStyle = FAIL; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(gapX - 14, y); ctx.lineTo(gapX + 8, y - 13); ctx.stroke(); // the open switch
+      ctx.fillStyle = FAIL; ctx.beginPath(); ctx.arc(gapX + 14, y, 4, 0, 7); ctx.fill();
+    } else {
+      ctx.beginPath(); ctx.moveTo(2, y); ctx.lineTo(w - 2, y); ctx.stroke();
+    }
+    // Traffic: dot spawn rate follows delivered/s on a log scale, so 10/s and 3,000/s both read.
+    const spawn = s.open ? 0 : (s.rate > 0 ? 2 + 9 * Math.log10(1 + s.rate) : 0);
+    s.acc += spawn * dt;
+    while (s.acc >= 1) { s.dots.push({ x: 0, v: 0.55 + Math.random() * 0.25, j: (Math.random() - 0.5) * 6 }); s.acc -= 1; }
+    ctx.fillStyle = c.color;
+    s.dots = s.dots.filter(d => {
+      d.x += d.v * dt * w * 0.9;
+      if (s.open && d.x > gapX - 16) return false;
+      if (d.x > w) return false;
+      ctx.beginPath(); ctx.arc(d.x, y + d.j * 0.4, 3.2, 0, 7); ctx.fill();
+      return true;
+    });
+  });
+  requestAnimationFrame(drawLanes);
+}
+requestAnimationFrame(drawLanes);
+
+// ---- stats ----
+const history = []; // {t, s: stats}
+const series = [];  // {t, acc, del, rl}
+let prov = {};
+
+function counter(s, k) { return s.stats[k] || 0; }
+function rateOver(k, secs) {
+  if (history.length < 2) return 0;
+  const cur = history[history.length - 1];
+  let old = history[0];
+  for (let i = history.length - 1; i >= 0; i--) { if (cur.t - history[i].t >= secs * 1000) { old = history[i]; break; } }
+  const dt = (cur.t - old.t) / 1000;
+  if (dt <= 0) return 0;
+  return Math.max(0, (counter(cur.s, k) - counter(old.s, k)) / dt);
+}
+
+function percentile(p) {
+  // Latency over the last ~5 s, from the change in the shared histogram.
+  if (history.length < 2) return null;
+  const cur = history[history.length - 1].s.latency;
+  let old = history[0].s.latency;
+  for (let i = history.length - 1; i >= 0; i--) { if (history[history.length - 1].t - history[i].t >= 5000) { old = history[i].s.latency; break; } }
+  const buckets = Object.keys(cur).map(Number).sort((a, b) => a - b);
+  const d = buckets.map(b => (cur[b] || 0) - (old[b] || 0));
+  const total = d.reduce((a, b) => a + b, 0);
+  if (total < 5) return null;
+  let run = 0;
+  for (let i = 0; i < buckets.length; i++) { run += d[i]; if (run >= total * p) return buckets[i]; }
+  return buckets[buckets.length - 1];
+}
+
+function setNum(id, v, unit) { $(id).innerHTML = `${v}<small>${unit}</small>`; }
+
+const LEDGER = [
+  ["Accepted", "accepted"],
+  ["Delivered", "delivered"],
+  ["Delivered on a fallback channel", "delivered_fallback"],
+  ["Retries scheduled", "retried"],
+  ["Skipped by an open circuit", "breaker_skip"],
+  ["Rejected by the rate limiter", "rate_limited"],
+  ["Stale or duplicate copies dropped", "stale_dropped"],
+  ["Writes rejected by fencing token", "fenced"],
+  ["Repeat sends suppressed by provider", "provider_duplicate"],
+  ["Republished by the outbox sweeper", "republished"],
+  ["Superseded by a newer update", "superseded"],
+];
+
+function render(snap) {
+  const now = Date.now();
+  history.push({ t: now, s: snap });
+  while (history.length && now - history[0].t > 130000) history.shift();
+
+  const acc = rateOver("accepted", 2), del = rateOver("delivered", 2), rl = rateOver("rate_limited", 2);
+  series.push({ t: now, acc, del, rl });
+  while (series.length && now - series[0].t > 120000) series.shift();
+
+  setNum("acc", fmt.format(Math.round(acc)), "/s");
+  setNum("del", fmt.format(Math.round(del)), "/s");
+  const p50 = percentile(0.5), p99 = percentile(0.99);
+  setNum("p50", p50 == null ? "–" : "≤" + fmt.format(p50), "ms");
+  setNum("p99", p99 == null ? "–" : "≤" + fmt.format(p99), "ms");
+
+  const breakers = snap.breakers || {};
+  CHANNELS.forEach(c => {
+    const st = laneState[c.id];
+    st.rate = rateOver("delivered:" + c.id, 2);
+    const states = Object.entries(breakers).filter(([k]) => k.endsWith("/" + c.id)).map(([, v]) => v);
+    st.open = states.includes("open");
+    st.half = !st.open && states.includes("half-open");
+    $("br-" + c.id).textContent = st.open ? "circuit open" : st.half ? "testing provider" : "circuit closed";
+    $("br-" + c.id).style.color = st.open ? FAIL : st.half ? "#B7790A" : "";
+    setNum("r-" + c.id, fmt.format(Math.round(st.rate)), "/s");
+    const failed = (prov[c.id] && prov[c.id].failed) || 0;
+    const f = $("f-" + c.id);
+    f.textContent = failed ? `${fmt.format(failed)} failed attempts` : "no failed attempts";
+    f.className = failed ? "bad" : "";
+  });
+  $("dlq").textContent = fmt.format(counter(snap, "dlq"));
+
+  const dup = Object.values(prov).reduce((a, v) => a + (v.duplicates_suppressed || 0), 0);
+  $("ledger").innerHTML = LEDGER.map(([label, k]) => {
+    const v = k === "provider_duplicate" ? dup : counter(snap, k);
+    return `<dt>${label}</dt><dd class="${v ? "" : "zero"}">${fmt.format(v)}</dd>`;
+  }).join("");
+  drawChart();
+}
+
+function drawChart() {
+  const cv = $("chart"); const [ctx, w, h] = sizeCanvas(cv);
+  ctx.clearRect(0, 0, w, h);
+  const now = Date.now(), span = 120000;
+  const max = Math.max(10, ...series.map(p => Math.max(p.acc, p.del, p.rl)));
+  const nice = Math.pow(10, Math.floor(Math.log10(max))); const top = Math.ceil(max / nice) * nice;
+  ctx.font = "500 12px Archivo"; ctx.fillStyle = "#8090A6"; ctx.strokeStyle = "#EDF0F4"; ctx.lineWidth = 1;
+  for (let i = 0; i <= 2; i++) {
+    const y = 6 + (h - 24) * (1 - i / 2);
+    ctx.beginPath(); ctx.moveTo(52, y); ctx.lineTo(w, y); ctx.stroke();
+    ctx.fillText(fmt.format(top * i / 2) + "/s", 0, y + 4);
+  }
+  const X = t => 52 + (w - 52) * (1 - (now - t) / span), Y = v => 6 + (h - 24) * (1 - v / top);
+  [["acc", INK], ["del", EMAIL], ["rl", FAIL]].forEach(([k, col]) => {
+    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath();
+    series.forEach((p, i) => i ? ctx.lineTo(X(p.t), Y(p[k])) : ctx.moveTo(X(p.t), Y(p[k])));
+    ctx.stroke();
+  });
+}
+
+// ---- events ----
+const feed = [];
+function onEvents(evs) {
+  for (const e of evs) feed.unshift(e);
+  feed.length = Math.min(feed.length, 12);
+  $("feed").innerHTML = feed.map(e => {
+    const t = new Date(e.at).toLocaleTimeString([], { hour12: false });
+    let d = e.channel ? `via ${e.channel}` : "";
+    if (e.status === "delivered" && e.latency_ms != null) d += ` in ${fmt.format(e.latency_ms)} ms`;
+    if (e.status === "retrying") d = `${e.channel} failed, retrying`;
+    if (e.status === "failed") d = e.error || "all channels failed";
+    if (e.status === "superseded") d = "a newer update was already delivered";
+    return `<li><span class="id">${e.id.slice(-8)}</span><span class="st ${e.status}">${e.status}</span><span class="d">${d}</span></li>`;
+  }).join("");
+}
+
+// ---- connection ----
+function connect() {
+  if (!KEY) { $("conn").innerHTML = "<b>Add ?key=&lt;admin key&gt; to the URL to see live data</b>"; return; }
+  const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/v1/ws?api_key=${encodeURIComponent(KEY)}`);
+  ws.onopen = () => { $("conn").className = "conn live"; $("conn").innerHTML = "<b>Live</b>, updating twice a second"; };
+  ws.onclose = () => { $("conn").className = "conn"; $("conn").innerHTML = "<b>Disconnected</b>, reconnecting"; setTimeout(connect, 1000); };
+  ws.onmessage = m => {
+    const msg = JSON.parse(m.data);
+    if (msg.type === "stats") { if (msg.provider) prov = msg.provider; render(msg.snapshot); }
+    else if (msg.type === "events") onEvents(msg.events);
+  };
+}
+connect();
+
+// ---- fault injection ----
+const down = {};
+document.querySelectorAll("#chaos button").forEach(b => b.addEventListener("click", async () => {
+  const ch = b.dataset.ch, next = !down[ch];
+  const r = await fetch("/v1/admin/chaos", { method: "POST", headers: { Authorization: "Bearer " + KEY, "Content-Type": "application/json" }, body: JSON.stringify({ channel: ch, down: next }) });
+  if (r.ok) setDown(ch, next);
+}));
+function setDown(ch, v) {
+  down[ch] = v;
+  const b = document.querySelector(`#chaos button[data-ch="${ch}"]`);
+  b.textContent = v ? `Bring ${ch} back` : `Take ${ch} down`;
+  b.classList.toggle("down", v);
+}
+window.setDown = setDown;
+
+// Captions for recorded demos: window.setCaption("text") / window.setCaption("")
+window.setCaption = t => { const c = $("caption"); c.textContent = t; c.classList.toggle("on", !!t); };
+addEventListener("resize", drawChart);
+</script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+# Two API replicas and two workers sharing PostgreSQL, Redis and Kafka.
+#
+#   docker compose up --build
+#   open http://localhost:8080/?key=admin-key       (dashboard, replica 1)
+#   curl -X POST localhost:8081/v1/notifications ...  (replica 2 works too)
+
+x-herald: &herald
+  image: herald:local
+  build: .
+  restart: on-failure
+  environment: &herald-env
+    HERALD_POSTGRES_URL: postgres://herald:herald@postgres:5432/herald?sslmode=disable
+    HERALD_REDIS_ADDR: redis:6379
+    HERALD_KAFKA_BROKERS: kafka:9092
+    HERALD_PROVIDER_URL: http://provider:8090
+    HERALD_TENANTS: demo-key:demo:50/1s,load-key:load:100000/1s
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: herald
+      POSTGRES_PASSWORD: herald
+      POSTGRES_DB: herald
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U herald"]
+      interval: 2s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      retries: 30
+
+  kafka:
+    image: apache/kafka:4.1.2
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 5s
+      retries: 30
+
+  migrate:
+    <<: *herald
+    command: ["migrate"]
+    restart: "no"
+    depends_on:
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+
+  provider:
+    <<: *herald
+    command: ["provider"]
+
+  api-1:
+    <<: *herald
+    command: ["api"]
+    environment: { <<: *herald-env, HERALD_NODE: api-1 }
+    ports: ["8080:8080"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  api-2:
+    <<: *herald
+    command: ["api"]
+    environment: { <<: *herald-env, HERALD_NODE: api-2 }
+    ports: ["8081:8080"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  worker-1:
+    <<: *herald
+    command: ["worker"]
+    environment: { <<: *herald-env, HERALD_NODE: worker-1 }
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  worker-2:
+    <<: *herald
+    command: ["worker"]
+    environment: { <<: *herald-env, HERALD_NODE: worker-2 }
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
