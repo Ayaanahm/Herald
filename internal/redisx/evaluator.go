@@ -11,7 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/Ayaanahm/herald/internal/coalesce"
+	"github.com/Ayaanahm/Herald/internal/coalesce"
 )
 
 var mPipeline = promauto.NewHistogram(prometheus.HistogramOpts{

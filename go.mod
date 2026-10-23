@@ -1,4 +1,4 @@
-module github.com/Ayaanahm/herald
+module github.com/Ayaanahm/Herald
 
 go 1.26.0
 

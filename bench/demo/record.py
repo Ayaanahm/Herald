@@ -100,7 +100,7 @@ def main():
         load.wait()
         cap("Load stops. Every notification ends delivered or in the dead-letter queue.")
         wait(8000)
-        cap("Code, tests and benchmarks: github.com/Ayaanahm/herald")
+        cap("Code, tests and benchmarks: github.com/Ayaanahm/Herald")
         wait(5000)
         video = page.video.path()
         ctx.close()

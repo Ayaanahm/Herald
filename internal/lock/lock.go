@@ -16,7 +16,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"github.com/Ayaanahm/herald/internal/redisx"
+	"github.com/Ayaanahm/Herald/internal/redisx"
 )
 
 var ErrNotAcquired = errors.New("lock: not acquired")

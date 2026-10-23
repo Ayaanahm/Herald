@@ -11,8 +11,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/Ayaanahm/herald/internal/store"
-	"github.com/Ayaanahm/herald/internal/testenv"
+	"github.com/Ayaanahm/Herald/internal/store"
+	"github.com/Ayaanahm/Herald/internal/testenv"
 )
 
 func TestValidate(t *testing.T) {

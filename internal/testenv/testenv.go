@@ -18,8 +18,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/twmb/franz-go/pkg/kgo"
 
-	"github.com/Ayaanahm/herald/internal/queue"
-	"github.com/Ayaanahm/herald/internal/store"
+	"github.com/Ayaanahm/Herald/internal/queue"
+	"github.com/Ayaanahm/Herald/internal/store"
 )
 
 func env(k, def string) string {

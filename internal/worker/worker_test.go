@@ -14,13 +14,13 @@ import (
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kgo"
 
-	"github.com/Ayaanahm/herald/internal/config"
-	"github.com/Ayaanahm/herald/internal/events"
-	"github.com/Ayaanahm/herald/internal/provider"
-	"github.com/Ayaanahm/herald/internal/queue"
-	"github.com/Ayaanahm/herald/internal/store"
-	"github.com/Ayaanahm/herald/internal/testenv"
-	"github.com/Ayaanahm/herald/internal/worker"
+	"github.com/Ayaanahm/Herald/internal/config"
+	"github.com/Ayaanahm/Herald/internal/events"
+	"github.com/Ayaanahm/Herald/internal/provider"
+	"github.com/Ayaanahm/Herald/internal/queue"
+	"github.com/Ayaanahm/Herald/internal/store"
+	"github.com/Ayaanahm/Herald/internal/testenv"
+	"github.com/Ayaanahm/Herald/internal/worker"
 )
 
 type harness struct {

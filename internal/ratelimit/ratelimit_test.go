@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Ayaanahm/herald/internal/ratelimit"
-	"github.com/Ayaanahm/herald/internal/testenv"
+	"github.com/Ayaanahm/Herald/internal/ratelimit"
+	"github.com/Ayaanahm/Herald/internal/testenv"
 )
 
 func key(t testing.TB) string { return fmt.Sprintf("%s-%d", t.Name(), time.Now().UnixNano()) }

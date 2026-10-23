@@ -14,7 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/Ayaanahm/herald/internal/events"
+	"github.com/Ayaanahm/Herald/internal/events"
 )
 
 var (

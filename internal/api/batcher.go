@@ -8,7 +8,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
-	"github.com/Ayaanahm/herald/internal/store"
+	"github.com/Ayaanahm/Herald/internal/store"
 )
 
 var (

@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Ayaanahm/herald/internal/lock"
-	"github.com/Ayaanahm/herald/internal/testenv"
+	"github.com/Ayaanahm/Herald/internal/lock"
+	"github.com/Ayaanahm/Herald/internal/testenv"
 )
 
 // 40 goroutines each do 25 read-modify-write increments of a Redis value,

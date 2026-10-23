@@ -11,10 +11,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/twmb/franz-go/pkg/kgo"
 
-	"github.com/Ayaanahm/herald/internal/events"
-	"github.com/Ayaanahm/herald/internal/lock"
-	"github.com/Ayaanahm/herald/internal/queue"
-	"github.com/Ayaanahm/herald/internal/store"
+	"github.com/Ayaanahm/Herald/internal/events"
+	"github.com/Ayaanahm/Herald/internal/lock"
+	"github.com/Ayaanahm/Herald/internal/queue"
+	"github.com/Ayaanahm/Herald/internal/store"
 )
 
 var mPublish = promauto.NewCounterVec(prometheus.CounterOpts{

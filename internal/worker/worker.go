@@ -32,14 +32,14 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/twmb/franz-go/pkg/kgo"
 
-	"github.com/Ayaanahm/herald/internal/breaker"
-	"github.com/Ayaanahm/herald/internal/coalesce"
-	"github.com/Ayaanahm/herald/internal/config"
-	"github.com/Ayaanahm/herald/internal/events"
-	"github.com/Ayaanahm/herald/internal/lock"
-	"github.com/Ayaanahm/herald/internal/provider"
-	"github.com/Ayaanahm/herald/internal/queue"
-	"github.com/Ayaanahm/herald/internal/store"
+	"github.com/Ayaanahm/Herald/internal/breaker"
+	"github.com/Ayaanahm/Herald/internal/coalesce"
+	"github.com/Ayaanahm/Herald/internal/config"
+	"github.com/Ayaanahm/Herald/internal/events"
+	"github.com/Ayaanahm/Herald/internal/lock"
+	"github.com/Ayaanahm/Herald/internal/provider"
+	"github.com/Ayaanahm/Herald/internal/queue"
+	"github.com/Ayaanahm/Herald/internal/store"
 )
 
 var (

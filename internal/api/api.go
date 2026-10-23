@@ -18,11 +18,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/Ayaanahm/herald/internal/config"
-	"github.com/Ayaanahm/herald/internal/events"
-	"github.com/Ayaanahm/herald/internal/ratelimit"
-	"github.com/Ayaanahm/herald/internal/store"
-	"github.com/Ayaanahm/herald/web"
+	"github.com/Ayaanahm/Herald/internal/config"
+	"github.com/Ayaanahm/Herald/internal/events"
+	"github.com/Ayaanahm/Herald/internal/ratelimit"
+	"github.com/Ayaanahm/Herald/internal/store"
+	"github.com/Ayaanahm/Herald/web"
 )
 
 var (

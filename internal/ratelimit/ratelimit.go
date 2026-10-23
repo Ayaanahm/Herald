@@ -15,7 +15,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"github.com/Ayaanahm/herald/internal/redisx"
+	"github.com/Ayaanahm/Herald/internal/redisx"
 )
 
 // Result of one Allow call.

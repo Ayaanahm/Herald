@@ -190,13 +190,22 @@ func (s *Store) InsertBatch(ctx context.Context, items []NewNotification) ([]Ins
 	return out, nil
 }
 
+// lockInIDOrder locks the rows whose ids are in $1, lowest id first. Every
+// statement that updates many notifications locks through it, so two batches
+// that share rows always take their locks in the same order and cannot
+// deadlock. (A plain multi-row UPDATE locks rows in whatever order the plan
+// visits them; under load, batches from the API and the workers deadlocked.)
+const lockInIDOrder = `SELECT id FROM notifications WHERE id = ANY($1::uuid[]) ORDER BY id FOR UPDATE`
+
 // MarkPublished records that these notifications are on Kafka.
 func (s *Store) MarkPublished(ctx context.Context, ids []uuid.UUID) error {
 	if len(ids) == 0 {
 		return nil
 	}
-	_, err := s.Pool.Exec(ctx,
-		`UPDATE notifications SET published_at = now() WHERE id = ANY($1) AND published_at IS NULL`, ids)
+	_, err := s.Pool.Exec(ctx, `
+		WITH locked AS (`+lockInIDOrder+`)
+		UPDATE notifications SET published_at = now()
+		WHERE id IN (SELECT id FROM locked) AND published_at IS NULL`, ids)
 	return err
 }
 
@@ -410,10 +419,11 @@ func (s *Store) ClaimMany(ctx context.Context, reqs []ClaimReq) ([]ClaimRes, err
 		ids[i], steps[i], fences[i] = r.ID, int32(r.Step), r.Fence
 	}
 	rows, err := s.Pool.Query(ctx, `
+		WITH locked AS (`+lockInIDOrder+`)
 		UPDATE notifications n
 		SET status = 'delivering', fence = u.fence, attempts = n.attempts + 1, updated_at = now()
 		FROM unnest($1::uuid[], $2::int[], $3::bigint[]) AS u(id, step, fence)
-		WHERE n.id = u.id AND n.step = u.step AND n.fence < u.fence
+		WHERE n.id = u.id AND n.id IN (SELECT id FROM locked) AND n.step = u.step AND n.fence < u.fence
 		  AND n.status IN ('queued', 'retrying', 'delivering')
 		RETURNING n.id, n.seq`, ids, steps, fences)
 	if err != nil {
@@ -459,10 +469,11 @@ func (s *Store) MarkDeliveredMany(ctx context.Context, reqs []DeliveredReq) ([]e
 		ids[i], fences[i], chans[i] = r.ID, r.Fence, r.Channel
 	}
 	rows, err := s.Pool.Query(ctx, `
+		WITH locked AS (`+lockInIDOrder+`)
 		UPDATE notifications n
 		SET status = 'delivered', channel = u.channel, delivered_at = now(), updated_at = now(), last_error = NULL
 		FROM unnest($1::uuid[], $2::bigint[], $3::text[]) AS u(id, fence, channel)
-		WHERE n.id = u.id AND n.fence = u.fence
+		WHERE n.id = u.id AND n.id IN (SELECT id FROM locked) AND n.fence = u.fence
 		RETURNING n.id`, ids, fences, chans)
 	if err != nil {
 		return nil, err
